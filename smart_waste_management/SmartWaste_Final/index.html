@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SmartBin AI — Waste Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="static/css/style.css"/>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <div class="nav-icon">🗑</div>
+    <div class="nav-name">SmartBin <span style="color:var(--green)">AI</span></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('predict',this)">🔍 Predict</button>
+    <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+    <button class="nav-tab" onclick="showPage('about',this)">ℹ️ About</button>
+  </div>
+  <div class="nav-right">
+    <div class="pill">Model Accuracy · 100%</div>
+  </div>
+</nav>
+
+<!-- ══ PREDICT PAGE ══ -->
+<div id="page-predict" class="page active">
+  <section class="hero">
+    <div class="hero-left">
+      <h1>Smart Waste<br/><span class="grad">Collection AI</span></h1>
+      <p>An intelligent waste management system that analyzes real-time bin sensor data to predict whether garbage collection is required — helping municipalities optimize routes and reduce operational costs. Trained on <strong style="color:var(--text2)">100,000 records</strong>.</p>
+      <div class="chips">
+        <span class="chip g">✓ Random Forest · 100% Accuracy</span>
+        <span class="chip">6 Input Features</span>
+        <span class="chip">8 Locations · 7 Waste Types</span>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="bin-card">
+        <div class="bin-lid"></div>
+        <div class="bin-body">
+          <div class="bin-fill" id="hero-fill" style="height:60%"></div>
+          <div class="bin-pct-label" id="hero-pct">60%</div>
+        </div>
+        <div class="bin-sub" id="bin-loc">📍 Hospital</div>
+        <div class="overflow-badge" id="overflow-badge">⚠️ Overflow Risk!</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="main-grid">
+    <div class="card">
+      <div class="card-hdr">Sensor Input Parameters</div>
+      <div class="field-row">
+        <div class="field">
+          <label>📍 Location</label>
+          <select id="location" onchange="document.getElementById('bin-loc').textContent='📍 '+this.value">
+            <option>Hospital</option><option>School</option><option>Market</option>
+            <option>Park</option><option>Residential</option><option>Industrial</option>
+            <option>Sector A</option><option>Sector B</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>♻️ Waste Type</label>
+          <select id="waste_type">
+            <option>Mixed</option><option>Organic</option><option>Plastic</option>
+            <option>Paper</option><option>Glass</option><option>Metal</option><option>E-waste</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>📶 Fill Level <span style="margin-left:auto;font-size:.68rem;color:var(--muted)">0 – 100%</span></label>
+        <div class="slider-wrap">
+          <input type="range" id="fill_level" min="0" max="100" value="60" oninput="syncFill(this.value)"/>
+          <div class="sv" id="fill_val">60%</div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>⚖️ Weight (kg)</label>
+          <input type="number" id="weight" value="26" min="0" max="53" step="0.1"/>
+        </div>
+        <div class="field">
+          <label>🌡️ Temperature (°C)</label>
+          <input type="number" id="temperature" value="28" min="-20" max="60" step="0.5"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>💧 Humidity <span style="margin-left:auto;font-size:.68rem;color:var(--muted)">0 – 100%</span></label>
+        <div class="slider-wrap">
+          <input type="range" id="humidity" min="0" max="100" value="60"
+            oninput="document.getElementById('hum_val').textContent=this.value+'%';updateBg(this)"/>
+          <div class="sv" id="hum_val">60%</div>
+        </div>
+      </div>
+      <button class="btn-predict" onclick="predict()">🔍 &nbsp;Predict Collection Need</button>
+    </div>
+
+    <div class="result-card">
+      <div class="card-hdr">AI Prediction Result</div>
+      <div class="verdict" id="verdict">
+        <div class="v-icon">🤖</div>
+        <div class="v-main">Awaiting Input</div>
+        <div class="v-sub">Enter sensor values and click Predict to get results</div>
+      </div>
+      <div>
+        <div class="conf-lbl"><span>Model Confidence</span><strong id="conf-pct">—</strong></div>
+        <div class="conf-track"><div class="conf-fill" id="conf-fill"></div></div>
+      </div>
+      <div class="priority-row">
+        <span class="lbl">Collection Priority</span>
+        <div class="prio None" id="prio">NONE</div>
+      </div>
+      <div class="info-grid">
+        <div class="info-cell"><div class="ic-lbl">Location</div><div class="ic-val" id="r-loc">—</div></div>
+        <div class="info-cell"><div class="ic-lbl">Waste Type</div><div class="ic-val" id="r-wt">—</div></div>
+        <div class="info-cell"><div class="ic-lbl">Fill Level</div><div class="ic-val" id="r-fill">—</div></div>
+        <div class="info-cell"><div class="ic-lbl">Weight</div><div class="ic-val" id="r-weight">—</div></div>
+        <div class="info-cell"><div class="ic-lbl">Temperature</div><div class="ic-val" id="r-temp">—</div></div>
+        <div class="info-cell"><div class="ic-lbl">Humidity</div><div class="ic-val" id="r-hum">—</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD PAGE ══ -->
+<div id="page-dashboard" class="page">
+  <div class="dash-wrap">
+    <div class="dash-title">📊 Dataset Insights</div>
+    <div class="dash-sub">Real statistics derived from the Smart Waste Management dataset — 100,000 records</div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-icon">🗂️</div><div class="kpi-val">1,00,000</div><div class="kpi-lbl">Total Records</div><div class="kpi-note g">Complete dataset</div></div>
+      <div class="kpi"><div class="kpi-icon">🚛</div><div class="kpi-val">21.05%</div><div class="kpi-lbl">Collection Required</div><div class="kpi-note a">21,049 bins</div></div>
+      <div class="kpi"><div class="kpi-icon">📶</div><div class="kpi-val">50.1%</div><div class="kpi-lbl">Avg Fill Level</div><div class="kpi-note g">Average across all bins</div></div>
+      <div class="kpi"><div class="kpi-icon">⚠️</div><div class="kpi-val">5.02%</div><div class="kpi-lbl">Overflow Rate</div><div class="kpi-note r">5,019 bins</div></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title">♻️ Waste Type Distribution</div><div class="bar-chart" id="waste-chart"></div></div>
+      <div class="chart-card"><div class="chart-title">📍 Location Distribution</div><div class="bar-chart" id="loc-chart"></div></div>
+      <div class="chart-card"><div class="chart-title">🚨 Collection Priority</div><div class="donut-wrap" id="prio-chart"></div></div>
+      <div class="chart-card"><div class="chart-title">✅ Collection Required Split</div><div class="donut-wrap" id="coll-chart"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ABOUT PAGE ══ -->
+<div id="page-about" class="page">
+  <div class="about-wrap">
+    <h2>About This Project</h2>
+    <p>SmartBin AI is an intelligent waste management system powered by machine learning. It analyzes IoT sensor data from smart bins to predict whether garbage collection is required — helping municipalities optimize collection routes and reduce unnecessary operational trips.</p>
+    <div class="feat-grid">
+      <div class="feat"><div class="feat-icon">🌲</div><div class="feat-ttl">Random Forest Classifier</div><div class="feat-desc">200 decision trees trained on 1,00,000 real-world waste management records. Achieves 100% accuracy on test data.</div></div>
+      <div class="feat"><div class="feat-icon">📡</div><div class="feat-ttl">6 Sensor Features</div><div class="feat-desc">Location, Waste Type, Fill Level, Weight, Temperature and Humidity — all collected from IoT-enabled smart bins in real time.</div></div>
+      <div class="feat"><div class="feat-icon">⚡</div><div class="feat-ttl">Real-time Prediction</div><div class="feat-desc">Sensor data entered instantly predicts collection need — fast and accurate response for every bin location.</div></div>
+      <div class="feat"><div class="feat-icon">🗺️</div><div class="feat-ttl">Smart Priority System</div><div class="feat-desc">Bins are automatically classified as Critical (96–100%), High (80–95%), Medium, or Low priority based on fill level thresholds.</div></div>
+    </div>
+    <h2 style="margin-top:22px;margin-bottom:10px">Model Details</h2>
+    <table class="mtable">
+      <tr><th>Parameter</th><th>Value</th></tr>
+      <tr><td>Algorithm</td><td>Random Forest Classifier</td></tr>
+      <tr><td>No. of Trees</td><td>200</td></tr>
+      <tr><td>Training Records</td><td>80,000 (80%)</td></tr>
+      <tr><td>Test Records</td><td>20,000 (20%)</td></tr>
+      <tr><td>Test Accuracy</td><td style="color:var(--green);font-weight:700">100.0%</td></tr>
+      <tr><td>Target Variable</td><td>Collection_Required (Yes / No)</td></tr>
+    </table>
+    <h2 style="margin-top:22px;margin-bottom:10px">Dataset Features</h2>
+    <table class="mtable">
+      <tr><th>Feature</th><th>Type</th><th>Values / Range</th></tr>
+      <tr><td>Location</td><td>Categorical</td><td>Hospital, School, Market, Park, Residential, Industrial, Sector A, Sector B</td></tr>
+      <tr><td>Waste Type</td><td>Categorical</td><td>Organic, Plastic, Paper, Glass, Metal, E-waste, Mixed</td></tr>
+      <tr><td>Fill Level</td><td>Numeric</td><td>0 – 100%</td></tr>
+      <tr><td>Weight</td><td>Numeric</td><td>0.01 – 53 kg</td></tr>
+      <tr><td>Temperature</td><td>Numeric</td><td>−20 to 60 °C</td></tr>
+      <tr><td>Humidity</td><td>Numeric</td><td>0 – 100%</td></tr>
+    </table>
+  </div>
+</div>
+
+<script src="static/js/main.js"></script>
+</body>
+</html>
